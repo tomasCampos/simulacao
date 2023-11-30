@@ -6,11 +6,13 @@ import desmoj.core.simulator.Model;
 import desmoj.core.simulator.Queue;
 import desmoj.core.simulator.TimeInstant;
 import desmoj.core.simulator.TimeSpan;
+import desmoj.core.statistic.Tally;
 
 public class Lavanderia extends Model{
 	
 	// Definição do tempo de simulação.
 	private static double tempoSimulacao = 5000;
+	private static double totalClientes = 0;
 	
 	/**
 	 * filaClientes: variável responsável por armazenar todos os clientes
@@ -38,6 +40,10 @@ public class Lavanderia extends Model{
 	 */
 	private ContDistUniform distribuicaoTempoServicoMaquinaLavar;
 	
+	private Tally utilizacaoMaquinaLavarRoupas;
+	private Tally tamanhoMedioFilaEspera;
+	private Tally tempoMedioLavanderia;
+	private Tally throughputLavanderia;
 	/**
 	    * Método construtor da Lavanderia.
 	    *
@@ -93,6 +99,11 @@ public class Lavanderia extends Model{
 	 */
 	public void init() {
 		
+		utilizacaoMaquinaLavarRoupas = new Tally(this, "Utilização da máquina de lavar-roupas", true, true);
+		tamanhoMedioFilaEspera = new Tally(this, "Tamanho médio da fila de espera da lavanderia", true, true);
+		tempoMedioLavanderia = new Tally(this, "Tempo médio que um cliente passa na lavanderia", true, true);
+		throughputLavanderia = new Tally(this, "Throughput da lavanderia.", true, true);
+
 		/**
 		 * Criação da fila de clientes aguardando sua vez de utilizarem a máquina de lavar.
 		 * Parâmetros:
@@ -174,7 +185,7 @@ public class Lavanderia extends Model{
 	     */
 		eventoGeradorCliente.schedule(new TimeSpan(0.0));
 	}
-	
+
 	/**
 	 * Método responsável por retornar uma amostra
 	 * da distribuição de probabilidade utilizada para determinar o momento de chegada,
@@ -208,13 +219,18 @@ public class Lavanderia extends Model{
 		 * Verifica se a máquina de lavar roupas está livre,
 		 * o que indica que o novo cliente que chegou à lavanderia pode utilizá-la.
 		 */
+		totalClientes++;
+		throughputLavanderia.update(totalClientes/tempoSimulacao);
 		if ((maquinaLavar.getOcupada()) == false){
 			
 			// Modifica o estado da máquina de lavar-roupas indicando que, a partir desse momento, ela está sendo utilizada por um cliente.
 			maquinaLavar.setOcupada(true);
 
 			// Utilização da máquina de lavar roupas pelo novo cliente que chegou à lavanderia.
-			maquinaLavar.lavar(cliente);
+			var tempoDuracaoLavagem = maquinaLavar.lavar(cliente);
+			var tempoClienteNaLavanderia = presentTime().getTimeAsDouble() - cliente.getInicioTempoResposta() + tempoDuracaoLavagem;
+			this.tempoMedioLavanderia.update(tempoClienteNaLavanderia);
+			this.utilizacaoMaquinaLavarRoupas.update(tempoDuracaoLavagem);
 		}else{
 			/**
 			 * Caso a máquina de lavar roupas esteja ocupada, lavando as roupas trazidas
@@ -222,6 +238,7 @@ public class Lavanderia extends Model{
 			 * entra em uma fila de espera para utilizar a máquina de lavar.
 			 */
 			filaClientes.insert(cliente);
+			this.tamanhoMedioFilaEspera.update(filaClientes.size());
 		}
 	}
 
@@ -253,9 +270,13 @@ public class Lavanderia extends Model{
 			// O primeiro cliente da fila de espera para utilizar a máquina de lavar é retirado dessa fila.
 			cliente = filaClientes.first();
 			filaClientes.remove(cliente);
+			this.tamanhoMedioFilaEspera.update(filaClientes.size());
 			
 			// Utilização da máquina de lavar-roupas pelo primeiro cliente da fila de espera.
-			maquinaLavar.lavar(cliente);
+			var tempoDuracaoLavagem = maquinaLavar.lavar(cliente);
+			var tempoClienteNaLavanderia = presentTime().getTimeAsDouble() - cliente.getInicioTempoResposta() + tempoDuracaoLavagem;
+			this.tempoMedioLavanderia.update(tempoClienteNaLavanderia);
+			this.utilizacaoMaquinaLavarRoupas.update(tempoDuracaoLavagem);
 		}
 	}
 	
@@ -287,7 +308,7 @@ public class Lavanderia extends Model{
 		
 		// Inicia o experimento no instante zero da simulação.
 		experimento.start();
-
+        
 		// Gera um relatório, e outros arquivos de saída, relacionados ao modelo conectado ao experimento.
 		experimento.report();
 

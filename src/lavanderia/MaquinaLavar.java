@@ -51,7 +51,7 @@ public class MaquinaLavar extends Entity{
     * Método responsável por recuperar o tempo durante o qual a máquina de lavar será utilizada por
     * um cliente (passado como parâmetro) e escalonar o evento responsável pela liberação dessa máquina de lavar. 
     */
-   public void lavar(Cliente cliente) {
+   public double lavar(Cliente cliente) {
 	   
 	   Lavanderia modeloLavanderia;
 	   double tempoLavagem;
@@ -74,6 +74,8 @@ public class MaquinaLavar extends Entity{
 	   eventoTerminoLavagem = new EventoTerminoLavagem(modeloLavanderia, "Evento relacionado ao término da lavagem das roupas do cliente", true);
 	   // e escalonado.
 	   eventoTerminoLavagem.schedule(this, cliente, new TimeSpan (tempoLavagem));
+
+	   return tempoLavagem;
    }
 
    // Método responsável por retornar se a máquina de lavar está ou não ocupada.
